@@ -2033,7 +2033,7 @@ const TUTORIAL_KEY='wangjo_dawn_intro_tour_v17';
 let tutorialStep=-1;
 const TUTORIAL_STEPS=[
  {title:'첫 가문의 문을 열었어!',body:'주요 기능을 메뉴에 나눠 놓았어. 직접 한 번씩 눌러 보면서 게임을 익혀 보자. 이 안내는 건너뛰거나 나중에 다시 열 수 있어.',next:'안내 시작',target:null},
- {title:'1. 이달의 결정',body:'왼쪽 메뉴에서 「이번 달의 결정」을 눌러 봐. PC에서는 F키로 언제든 이 화면에 돌아올 수 있어.',target:'[data-screen-target="home"]',event:'screen',value:'home'},
+ {title:'1. 이달의 결정',body:'왼쪽 메뉴에서 「이번 달의 결정」을 눌러 봐. 이미 이 화면이라면 아래 「이 화면 열기 · 다음」 버튼을 눌러도 돼. PC에서는 F키로 언제든 이 화면에 돌아올 수 있어.',target:'[data-screen-target="home"]',event:'screen',value:'home'},
  {title:'2. 첫 결정을 내려 봐',body:'「경전 강독」을 한 번 눌러 봐. 능력치와 가계가 변하고 다음 달로 이동할 거야. 역사·가문 이벤트가 나오면 먼저 선택해서 마무리해 줘.',target:'#activityCards [data-act="study"]',event:'action'},
  {title:'3. 가문의 땅 살펴보기',body:'「가문의 근거지」를 눌러 지역별 수입·가호와 이동 조건을 확인해 봐.',target:'[data-screen-target="region"]',event:'screen',value:'region'},
  {title:'4. 가문의 후계 준비',body:'「가족·후계」에서 배우자, 자녀 교육, 세대교체가 어떻게 이루어지는지 확인해 봐.',target:'[data-screen-target="household"]',event:'screen',value:'household'},
@@ -2044,9 +2044,27 @@ const TUTORIAL_STEPS=[
 function maybeStartTutorial(){try{if(localStorage.getItem(TUTORIAL_KEY)==='done')return;}catch(e){}if(tutorialStep<0)tutorialStep=0;drawTutorial();}
 function endTutorial(){tutorialStep=-1;document.getElementById('tutorialGuide').classList.remove('show');document.querySelectorAll('.tutorialSpotlight').forEach(e=>e.classList.remove('tutorialSpotlight'));try{localStorage.setItem(TUTORIAL_KEY,'done')}catch(e){} }
 function tutorialAction(event,value){if(tutorialStep<0)return;const step=TUTORIAL_STEPS[tutorialStep];if(step&&step.event===event&&(step.value===undefined||step.value===value)){tutorialStep++;drawTutorial();}}
-function drawTutorial(){if(tutorialStep<0)return;const guide=$('tutorialGuide');const step=TUTORIAL_STEPS[tutorialStep];if(!step){endTutorial();return;}guide.classList.add('show');$('tutorialProgress').textContent=`처음 하는 사람을 위한 길잡이 · ${Math.min(tutorialStep+1,TUTORIAL_STEPS.length)}/${TUTORIAL_STEPS.length}`;$('tutorialTitle').textContent=step.title;$('tutorialText').textContent=step.body;$('tutorialNext').textContent=step.next||'다음';$('tutorialNext').hidden=!step.next;document.querySelectorAll('.tutorialSpotlight').forEach(e=>e.classList.remove('tutorialSpotlight'));if(step.target){const target=document.querySelector(step.target);if(target)target.classList.add('tutorialSpotlight');}}
+function drawTutorial(){if(tutorialStep<0)return;const guide=$('tutorialGuide');const step=TUTORIAL_STEPS[tutorialStep];if(!step){endTutorial();return;}guide.classList.add('show');$('tutorialProgress').textContent=`처음 하는 사람을 위한 길잡이 · ${Math.min(tutorialStep+1,TUTORIAL_STEPS.length)}/${TUTORIAL_STEPS.length}`;$('tutorialTitle').textContent=step.title;$('tutorialText').textContent=step.body;$('tutorialNext').textContent=step.next||(step.event==='screen'?'이 화면 열기 · 다음':'이 단계 건너뛰기');$('tutorialNext').hidden=false;document.querySelectorAll('.tutorialSpotlight').forEach(e=>e.classList.remove('tutorialSpotlight'));if(step.target){const target=document.querySelector(step.target);if(target)target.classList.add('tutorialSpotlight');}}
 $('tutorialSkip').onclick=endTutorial;
-$('tutorialNext').onclick=()=>{if(tutorialStep===0){tutorialStep=1;drawTutorial();return;}if(tutorialStep===TUTORIAL_STEPS.length-1){endTutorial();showScreen('home');}};
+$('tutorialNext').onclick=()=>{
+ if(tutorialStep<0)return;
+ const step=TUTORIAL_STEPS[tutorialStep];
+ if(!step){endTutorial();return;}
+ if(tutorialStep===TUTORIAL_STEPS.length-1){endTutorial();showScreen('home');return;}
+ if(tutorialStep===0){tutorialStep=1;drawTutorial();return;}
+ if(step.event==='screen'&&step.value){
+  // The indicated screen may already be selected (e.g. tutorial 2/8).
+  // Explicitly revisit it so the tutorial always advances.
+  const before=tutorialStep;
+  showScreen(step.value);
+  if(tutorialStep===before){tutorialStep++;drawTutorial();}
+  return;
+ }
+ // The actual activity should preferably be clicked; provide a safe fallback
+ // for saved games with blocked activities or pending historical events.
+ tutorialStep++;
+ drawTutorial();
+};
 $('helpBtn').addEventListener('contextmenu',e=>{e.preventDefault();tutorialStep=0;drawTutorial();});
 
 $('activityCards').addEventListener('click',e=>{let b=e.target.closest('[data-act]');if(b){const ok=act(b.dataset.act);if(ok!==false)tutorialAction('action');}});
